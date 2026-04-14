@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Anti-Spam</title>
+  <style>
+    body {
+      width: 300px;
+      padding: 15px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    textarea {
+      width: 100%;
+      height: 100px;
+      margin-bottom: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 5px;
+    }
+    button {
+      width: 100%;
+      padding: 10px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    #result {
+      margin-top: 15px;
+      padding: 10px;
+      border-radius: 4px;
+      display: none;
+    }
+    .spam {
+      background-color: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    .safe {
+      background-color: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+  </style>
+</head>
+<body>
+  <h3>Phát hiện Spam 🛡️</h3>
+  <textarea id="textInput" placeholder="Dán tin nhắn vào đây..."></textarea>
+  <button id="checkBtn">Kiểm tra</button>
+  <div id="result"></div>
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  spam_detector:
+    build: .
+    container_name: doan_antispam_app
+    ports:
+      - "8501:8501"
+    restart: always
+    volumes:
+      - .:/app
