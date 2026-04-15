@@ -1,40 +1,67 @@
-// Content script - Tự động quét trang web
-console.log("🛡️ Anti-Spam Content Script đã được tải.");
+// Content script - Tự động quét trang web và phát hiện Phishing
+console.log("🛡️ Anti-Spam (Pro) Content Script is active.");
 
-// Hàm gửi text về Backend để kiểm tra
-async function checkSpam(text) {
-    if (text.length < 10) return null; // Bỏ qua text quá ngắn
+const PHISHING_KEYWORDS = [
+    'đăng nhập', 'login', 'verify', 'xác thực', 'mật khẩu', 
+    'urgent', 'khẩn cấp', 'tài khoản bị khóa', 'nạp tiền',
+    'trúng thưởng', 'nhận quà', 'tri ân'
+];
+
+async function scanForPhishing() {
+    const pageText = document.body.innerText.toLowerCase();
+    const hasSensitiveForm = document.querySelector('input[type="password"]') !== null;
+    
+    // 1. Kiểm tra từ khóa nhạy cảm trên trang
+    let foundKeywords = PHISHING_KEYWORDS.filter(word => pageText.includes(word));
+    
+    if (foundKeywords.length > 2 || (hasSensitiveForm && foundKeywords.length > 0)) {
+        console.warn("🚨 Cảnh báo: Trang web chứa nhiều từ khóa nhạy cảm và form đăng nhập.");
+        
+        // Gửi alert hoặc thông báo nếu cần (tùy chọn)
+        // Lưu ý: Việc highlight trực tiếp có thể gây khó chịu, nên ta chỉ log hoặc báo về background
+    }
+
+    // 2. Kiểm tra các thẻ chứa nội dung dài (như tin nhắn, bài viết)
+    const elements = document.querySelectorAll('p, span, div');
+    for (let el of elements) {
+        if (el.children.length === 0 && el.innerText.trim().length > 30 && el.innerText.trim().length < 1000) {
+            const text = el.innerText.trim();
+            
+            // Chỉ gửi lên server nếu chứa từ khóa nghi vấn để tiết kiệm tài nguyên
+            if (PHISHING_KEYWORDS.some(word => text.toLowerCase().includes(word))) {
+                checkAndHighlight(el, text);
+            }
+        }
+    }
+}
+
+async function checkAndHighlight(el, text) {
     try {
         const response = await fetch('http://localhost:5000/predict', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ message: text })
         });
-        return await response.json();
-    } catch (e) {
-        return null;
-    }
-}
-
-// Quét các thẻ văn bản trên trang
-async function scanPage() {
-    const elements = document.querySelectorAll('p, span, h1, h2, h3, div');
-    
-    for (let el of elements) {
-        // Chỉ quét các thẻ có text trực tiếp và không quá dài
-        if (el.children.length === 0 && el.innerText.trim().length > 20 && el.innerText.trim().length < 500) {
-            const text = el.innerText.trim();
-            const result = await checkSpam(text);
+        const result = await response.json();
+        
+        if (result && result.is_spam) {
+            el.style.border = "2px dashed #ef4444";
+            el.style.backgroundColor = "rgba(239, 68, 68, 0.1)";
+            el.style.position = "relative";
             
-            if (result && result.is_spam) {
-                console.warn("🚨 Phát hiện Spam:", text);
-                el.style.border = "2px solid red";
-                el.style.backgroundColor = "#fff0f0";
-                el.title = `Cảnh báo: AI nhận diện đây là Spam (${result.probability}%)`;
-            }
+            const warningBadge = document.createElement('span');
+            warningBadge.innerText = "⚠️ Cảnh báo AI";
+            warningBadge.style.cssText = "position:absolute; top:-10px; right:0; background:#ef4444; color:white; font-size:10px; padding:2px 5px; border-radius:4px; z-index:1000;";
+            el.appendChild(warningBadge);
         }
+    } catch (e) {
+        // Im silent on error
     }
 }
 
-// Chạy quét sau khi trang load xong 2 giây (để chờ các script khác load nội dung)
-setTimeout(scanPage, 2000);
+// Chạy khi trang ổn định
+if (document.readyState === 'complete') {
+    scanForPhishing();
+} else {
+    window.addEventListener('load', scanForPhishing);
+}

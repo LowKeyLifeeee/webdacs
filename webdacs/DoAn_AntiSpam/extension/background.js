@@ -18,31 +18,58 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
     if (info.menuItemId === "checkSpamImage") {
         const imageUrl = info.srcUrl;
         
-        // Thông báo cho người dùng là đang kiểm tra
+        // 1. Dùng Scripting để convert ảnh sang Base64 trực tiếp trên trang (Xử lý được lỗi blob:)
         chrome.scripting.executeScript({
             target: { tabId: tab.id },
-            func: (url) => { alert("Đang kiểm tra ảnh: " + url + "\nVui lòng đợi kết quả..."); },
+            func: async (url) => {
+                try {
+                    const resp = await fetch(url);
+                    const blob = await resp.blob();
+                    return new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onloadend = () => resolve(reader.result);
+                        reader.readAsDataURL(blob);
+                    });
+                } catch (e) {
+                    return url; // Nếu lỗi thì trả về URL gốc
+                }
+            },
             args: [imageUrl]
-        });
+        }).then(results => {
+            const base64Data = results[0].result;
 
-        // Gửi URL ảnh về Backend
-        fetch('http://localhost:5000/predict_image', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ image_url: imageUrl })
+            chrome.scripting.executeScript({
+                target: { tabId: tab.id },
+                func: () => { alert("Đang phân tích hình ảnh... Vui lòng đợi kết quả."); }
+            });
+
+            // 2. Gửi Base64 về Backend
+            return fetch('http://localhost:5000/predict_image', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ image_url: base64Data })
+            });
         })
         .then(response => response.json())
         .then(data => {
-            let message = "";
+            let statusIcon = "🟢";
+            let statusText = "[MÀU XANH - AN TOÀN]";
+            
             if (data.is_spam) {
-                message = `🚨 CẢNH BÁO SPAM!\nNội dung trích xuất: "${data.message}"\nĐộ tin cậy: ${data.probability}%`;
-            } else if (data.error) {
-                message = `❌ Lỗi: ${data.error}`;
+                statusIcon = "🔴";
+                statusText = "[MÀU ĐỎ - NGUY HIỂM]";
+            } else if (data.probability < 50) { // Nếu độ tin cậy thấp, báo màu vàng
+                statusIcon = "🟡";
+                statusText = "[MÀU VÀNG - NGHI NGỜ]";
+            }
+
+            let message = `${statusIcon} ${statusText}\n--------------------------------\n`;
+            if (data.is_spam) {
+                message += `CẢNH BÁO: PHÁT HIỆN LỪA ĐẢO!\nTỷ lệ: ${data.probability}%\nNội dung: "${data.message}"`;
             } else {
-                message = `✅ AN TOÀN.\nNội dung ảnh: "${data.message}"`;
+                message += `Đánh giá: AN TOÀN\nĐộ tin cậy: ${data.probability}%\nNội dung: "${data.message}"`;
             }
             
-            // Hiển thị kết quả bằng Alert trên trang
             chrome.scripting.executeScript({
                 target: { tabId: tab.id },
                 func: (msg) => { alert(msg); },
@@ -75,15 +102,16 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
         .then(data => {
             let title = "";
             let message = "";
+            let icon = "🟢"; // Icon mặc định
             
             if (data.is_spam) {
-                title = "🚨 CẢNH BÁO LỪA ĐẢO (SPAM)";
+                title = "🔴 [MÀU ĐỎ] - CẢNH BÁO LỪA ĐẢO";
                 message = `Độ tin cậy: ${data.probability}%\nNội dung có chứa yếu tố nguy hiểm hoặc lừa đảo.`;
-            } else if (data.error) {
-                title = "❌ Lỗi hệ thống";
-                message = data.error;
+            } else if (data.probability < 50) {
+                title = "🟡 [MÀU VÀNG] - NGHI NGỜ";
+                message = `Độ tin cậy: ${data.probability}%\nNội dung chưa được xác thực rõ ràng.`;
             } else {
-                title = "✅ NỘI DUNG AN TOÀN";
+                title = "🟢 [MÀU XANH] - AN TOÀN";
                 message = `Độ tin cậy: ${data.probability}%\nKhông tìm thấy yếu tố lừa đảo.`;
             }
             
@@ -108,3 +136,98 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
         });
     }
 });
+
+// --- NEW: Real-time URL Scanning ---
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    // Chỉ kiểm tra khi URL đã hoàn tất tải
+    if (changeInfo.status === 'complete' && tab.url && tab.url.startsWith('http')) {
+        checkURLSafety(tab.url, tabId);
+    }
+});
+
+function checkURLSafety(url, tabId) {
+    const hostname = new URL(url).hostname;
+
+    chrome.storage.local.get(['whitelist', 'blacklist'], (result) => {
+        const whitelist = result.whitelist || [];
+        const blacklist = result.blacklist || [];
+
+        if (whitelist.includes(hostname)) {
+            updateBadge(tabId, "OK", "#4CAF50");
+            chrome.storage.local.set({ [`analysis_${tabId}`]: { status: "Tin tưởng", status_code: "safe", reasons: ["Domain nằm trong Whitelist cá nhân"] } });
+            return;
+        }
+
+        if (blacklist.includes(hostname)) {
+            updateBadge(tabId, "!", "#F44336");
+            const data = { status: "Đã bị chặn", status_code: "dangerous", reasons: ["Domain nằm trong Blacklist cá nhân"] };
+            chrome.storage.local.set({ [`analysis_${tabId}`]: data });
+            showDangerNotification(data.reasons[0]);
+            return;
+        }
+
+        // Nếu không nằm trong list, gọi API phân tích
+        fetch('http://localhost:5000/predict-url', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ url: url })
+        })
+        .then(response => response.json())
+        .then(data => {
+            let badgeText = "";
+            let badgeColor = "";
+            
+            if (data.status_code === "dangerous") {
+                badgeText = "!";
+                badgeColor = "#F44336";
+                showDangerNotification(data.reasons[0]);
+            } else if (data.status_code === "suspicious") {
+                badgeText = "?";
+                badgeColor = "#FF9800";
+            } else {
+                badgeText = "OK";
+                badgeColor = "#4CAF50";
+            }
+            
+            updateBadge(tabId, badgeText, badgeColor);
+            chrome.storage.local.set({ [`analysis_${tabId}`]: data });
+            saveToHistory(url, data);
+        })
+        .catch(err => console.error("API Error:", err));
+    });
+}
+
+function updateBadge(tabId, text, color) {
+    chrome.action.setBadgeText({ text: text, tabId: tabId });
+    chrome.action.setBadgeBackgroundColor({ color: color, tabId: tabId });
+}
+
+function showDangerNotification(reason) {
+    chrome.notifications.create({
+        type: 'basic',
+        iconUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+        title: "🔴 CẢNH BÁO NGUY HIỂM",
+        message: `Trang web này có dấu hiệu lừa đảo!\n${reason || ""}`,
+        priority: 2
+    });
+}
+
+function saveToHistory(url, data) {
+    chrome.storage.local.get(['scanHistory'], (result) => {
+        let history = result.scanHistory || [];
+        const newItem = {
+            url: url,
+            status: data.status,
+            status_code: data.status_code,
+            timestamp: new Date().toLocaleString('vi-VN')
+        };
+        
+        // Tránh trùng lặp URL liên tiếp
+        if (history.length > 0 && history[0].url === url) return;
+
+        history.unshift(newItem);
+        if (history.length > 50) history.pop(); // Giới hạn 50 mục
+        
+        chrome.storage.local.set({ scanHistory: history });
+    });
+}

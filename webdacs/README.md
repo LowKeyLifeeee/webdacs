@@ -1,65 +1,78 @@
-# 🛡️ Hệ Thống AI Nhận Diện Tin Nhắn Spam & Lừa Đảo
+# 🛡️ Hệ Thống AI Nhận Diện Tin Nhắn Spam & Lừa Đảo (V2.0 Pro)
 
-Chào mừng bạn đến với dự án Hệ Thống Phát Hiện Tin Nhắn Rác (Anti-Spam Detector). Dự án này kết hợp giữa mô hình Học máy học (AI), Công nghệ nhận dạng kí tự quang học (OCR), API linh hoạt và Tiện ích mở rộng trên trình duyệt để mang lại một trải nghiệm tự động cảnh báo lừa đảo toàn diện nhất.
+Chào mừng bạn đến với phiên bản nâng cấp của dự án Hệ Thống Phát Hiện Tin Nhắn Rác. Phiên bản này được tích hợp trí tuệ nhân tạo (AI), công nghệ OCR và hệ thống phân tích URL độc hại để bảo vệ người dùng toàn diện trên không gian mạng.
 
-## ✨ Các Tính Năng Nổi Bật
+## ✨ Các Tính Năng Nổi Bật (Mới Cập Nhật)
 
-1. **Phân Loại Văn Bản Chính Xác**:  Dựa trên mô hình AI đã được huấn luyện bằng `scikit-learn` cùng công nghệ TF-IDF, phân biệt nhanh chóng tin nhắn Bình thường (Ham) và Tin rác/Lừa đảo (Spam).
-2. **Tích Hợp Công Nghệ Nhận Diện Chữ Từ Ảnh (OCR)**: Sử dụng **PyTesseract** kết hợp PIL để nâng cao độ tương phản ảnh, trích xuất chính xác văn bản từ các bức ảnh chụp màn hình tin nhắn, Zalo, SMS.
-3. **Tiện Ích Trình Duyệt (Chrome Extension)**:
-   - Tích hợp tính năng bôi đen hoặc chỉ cần quét vào đường link (URL) bất kỳ và ấn chuột phải.
-   - Nhấp vào "Kiểm tra đoạn tin nhắn hoặc URL này 🛡️".
-   - Extension sẽ gọi về API cục bộ, phân tích và trả về thông báo (Notification) ngay trên góc trình duyệt.
-   - Kiểm tra ảnh nghi ngờ lừa đảo qua tùy chọn chuột phải trên hình ảnh.
-4. **Quy Tắc Lọc Nhanh (Blacklist)**: Khóa chặn sớm các tổ hợp từ khóa lừa đảo đặc trưng của tiền ảo, cờ bạc, và xổ số lừa đảo (casino, nạp lần đầu, ball88, hũ bạc tỷ, v.v.).
-5. **Giao Diện Upload Trực Quan**: 1 bản Web Demo hoàn chỉnh viết bằng nền tảng **Streamlit** thân thiện người dùng (`app.py`).
+1.  **Phát hiện URL & Phishing (Mới):** Tự động phân tích các liên kết (URL) để phát hiện trang web lừa đảo, giả mạo thương hiệu hoặc thiếu bảo mật.
+2.  **Hệ thống Icon 3 Màu (Mới):** 
+    *   🟢 **Xanh lá:** An toàn.
+    *   🟡 **Vàng:** Nghi ngờ/Chưa xác thực.
+    *   🔴 **Đỏ:** Nguy hiểm/Lừa đảo.
+3.  **Quét Ảnh Thông Minh (OCR Pro):** Tối ưu hóa cho các đoạn chat (Zalo, Facebook) với khả năng phóng ảnh và khử nhiễu.
+4.  **Cảnh báo Real-time:** Tự động thay đổi màu Icon trình duyệt (Badge) và gửi Notification khi bạn truy cập web.
+5.  **Whitelist & Blacklist:** Cho phép người dùng tùy chỉnh danh sách domain tin tưởng hoặc chặn hoàn toàn.
+6.  **Giao diện Premium:** Popup hiện đại sử dụng Glassmorphism cùng hệ thống "Explainable AI" giải thích lý do cảnh báo.
+
+---
 
 ## ⚙️ Hướng Dẫn Cài Đặt
 
-### 1. Yêu Cầu Môi Trường
-- **Python:** 3.8 trở lên.
-- **Tesseract OCR:**  Bắt buộc phải tải và cài đặt Tesseract OCR.
-  > ⚠️ **Lưu ý:** Chữ trong code đang được trỏ cài mặc định vào thư mục `D:\OCR\tesseract.exe`. Nếu bạn cài đặt Tesseract ở folder khác, vui lòng mở 2 file `api.py` và `app.py` để chỉnh sửa lại thông số `tesseract_cmd`.
+### 1. Yêu cầu hệ thống
+- **Python:** 3.8 - 3.12+
+- **Tesseract OCR:** Cần cài đặt phần mềm Tesseract OCR vào máy. (Mặc định trong code trỏ tới `C:\Program Files\Tesseract-OCR\tesseract.exe`).
 
-### 2. Cài Đặt Thư Viện Thiếu
-Di chuyển terminal vào trong thư mục `DoAn_AntiSpam` và chạy lệnh sau để thiết lập thư viện:
+### 2. Cài đặt các thư viện cần thiết
+Bạn cần mở Terminal tại thư mục `DoAn_AntiSpam` và chạy lệnh sau để cài đặt toàn bộ môi trường:
 
 ```cmd
 pip install flask flask-cors streamlit joblib scikit-learn pillow pytesseract requests
 ```
 
-## 🚀 Hướng Dẫn Chạy & Khai Thác
+### 3. Danh sách thư viện đã sử dụng
+-   **Flask:** Xây dựng máy chủ mã nguồn (Backend API) cho Extension.
+-   **Flask-CORS:** Hỗ trợ kết nối giữa Extension và máy chủ API.
+-   **Streamlit:** Xây dựng giao diện Web Demo chuyên nghiệp.
+-   **scikit-learn:** Thư viện AI chính để phân loại văn bản (LinearSVC, TF-IDF).
+-   **Pillow (PIL):** Xử lý hình ảnh, tăng độ tương phản trước khi nhận diện chữ.
+-   **pytesseract:** Cầu nối sử dụng công cụ Tesseract OCR để đọc chữ.
+-   **Requests:** Tải dữ liệu ảnh từ các URL để phân tích.
+-   **joblib:** Lưu trữ và tải các mô hình trí tuệ nhân tạo đã huấn luyện.
 
-Dự án gồm 3 phần độc lập có thể chạy song song tùy theo mục đích sử dụng.
+---
 
-### 👉 Chạy Backend API (Cấp thiết cho Extension)
-Backend sẽ chạy một Local API bằng Flask trên máy chủ tại Cổng 5000. Backend này giúp tiếp nhận nội dung quét từ tiện ích mở rộng trên trình duyệt.
+## 🚀 Hướng Dẫn Vận Hành
 
+Dự án gồm 3 phần chính hoạt động song song:
+
+### Bước 1: Khởi chạy Backend API (Bắt buộc cho Extension)
+Backend này giúp xử lý các yêu cầu quét từ tiện ích mở rộng trên trình duyệt.
 ```cmd
 cd DoAn_AntiSpam
 python api.py
 ```
-*(Nếu bạn dùng console báo lỗi không load được font kí tự, đảm bảo môi trường console chạy ở định dạng UTF-8).*
 
-### 👉 Chạy App Giao Diện Web (Streamlit UI)
-Cung cấp khu vực người dùng đăng nhập, sử dụng ô text check hoặc kéo thả trực tiếp ảnh vào khu vực test nhận diện bằng trình duyệt:
-
+### Bước 2: Khởi chạy Giao diện Web (Streamlit UI)
+Đây là bản demo web hoàn chỉnh để bạn upload ảnh hoặc dán nội dung thủ công.
 ```cmd
 cd DoAn_AntiSpam
-streamlit run app.py
+python -m streamlit run app.py
 ```
 
-### 👉 Cài Đặt Extension Trên Chrome
-1. Mở Cốc Cốc hoặc Google Chrome và truy cập vào địa chỉ: `chrome://extensions/`
-2. Kích hoạt nút **Chế độ cho nhà phát triển (Developer mode)** ở góc trên bên phải màn hình.
-3. Bấm vào nút **Tải tiện ích đã giải nén (Load unpacked)**.
-4. Điều hướng tới folder chứa mã nguồn, chọn thư mục mang tên `extension` là xong.
-
-## 🧠 Nguyên Lý Trả Kết Quả
-
-Hệ thống được thiết lập cơ chế **Chỉ số an toàn** dễ hiểu cho người thực địa sử dụng:
-- **Ngưỡng 90% - 100%:** Nội dung sạch sẽ, an toàn tuyệt đối.
-- **Ngưỡng < 20%:** Có dấu hiệu lừa đảo nặng nề, có chữ nhạy cảm trong hệ thống cấm hoặc nhận diện AI đưa ra kết quả SPAM. Cần cực kì cẩn trọng tránh nhấp link, nạp tiền mặt.
+### Bước 3: Cài đặt tiện ích mở rộng (Chrome Extension)
+1. Truy cập `chrome://extensions/` trên Chrome/Edge/Cốc Cốc.
+2. Bật **Chế độ cho nhà phát triển (Developer mode)**.
+3. Nhấp vào **Tải tiện ích đã giải nén (Load unpacked)**.
+4. Chọn thư mục `extension` trong dự án của bạn.
 
 ---
-*Chúc bạn có những trải nghiệm bảo mật tuyệt vời và an toàn trên không gian mạng!*
+
+## 🧠 Nguyên Lý Hoạt Động
+
+Dựa trên công nghệ **Explainable AI (XAI)**, hệ thống không chỉ trả về kết quả mà còn đưa ra lý do:
+- **HTTPS:** Kiểm tra chứng chỉ bảo mật.
+- **Typosquatting:** Kiểm tra xem domain có đang giả mạo các trang lớn (Google, Facebook, Ngân hàng...) hay không.
+- **ML Model:** Sử dụng `LinearSVC` và `TF-IDF` để phân tích ngữ nghĩa tin nhắn.
+
+---
+*Chúc bạn có những trải nghiệm an toàn và đạt kết quả cao trong đồ án bảo vệ!*

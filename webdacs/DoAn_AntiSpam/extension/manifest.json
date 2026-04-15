@@ -3,7 +3,7 @@
   "name": "Anti-Spam Detector (Pro)",
   "version": "1.1",
   "description": "Tự động phát hiện spam trên trang web và kiểm tra ảnh.",
-  "permissions": ["contextMenus", "activeTab", "scripting", "notifications"],
+  "permissions": ["contextMenus", "activeTab", "scripting", "notifications", "tabs", "storage"],
   "action": {
     "default_popup": "popup.html"
   },
