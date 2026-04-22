@@ -20,6 +20,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const manualResult = document.getElementById('manualResult');
     const manualStatusText = document.getElementById('manualStatusText');
 
+    const scanScreenBtn = document.getElementById('scanScreenBtn');
+    const cvResult = document.getElementById('cvResult');
+    const cvStatusText = document.getElementById('cvStatusText');
+    const cvContentText = document.getElementById('cvContentText');
+
     // --- Tab Switching Logic ---
     homeTab.addEventListener('click', () => {
         homeView.style.display = 'block';
@@ -151,5 +156,54 @@ document.addEventListener('DOMContentLoaded', async () => {
             checkBtn.innerText = "Phân tích bằng AI";
             checkBtn.disabled = false;
         });
+    });
+
+    // 4. Computer Vision - Quét Toàn Màn Hình
+    scanScreenBtn.addEventListener('click', async () => {
+        scanScreenBtn.disabled = true;
+        const originalText = scanScreenBtn.innerHTML;
+        scanScreenBtn.innerHTML = '<span style="font-size: 20px;">⏳</span><span>Đang chụp ảnh/Phân tích OCR...</span>';
+        
+        cvResult.style.display = 'block';
+        cvStatusText.innerHTML = "Đang chụp hình và khởi chạy AI...";
+        cvContentText.style.display = 'none';
+
+        try {
+            // Chụp khung nhìn hiện tại
+            const dataUrl = await new Promise((resolve, reject) => {
+                chrome.tabs.captureVisibleTab(null, {format: 'png', quality: 100}, (url) => {
+                    if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
+                    else resolve(url);
+                });
+            });
+
+            // Gửi dữ liệu ảnh lên API local
+            const response = await fetch('http://localhost:5000/predict_image', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ image_url: dataUrl }) 
+            });
+            const data = await response.json();
+
+            if (data.is_spam) {
+                cvStatusText.innerHTML = `<span style="color:var(--danger)">🚨 Cảnh báo Lừa đảo / Spam:</span> Tỷ lệ rủi ro (${data.probability}%)`;
+            } else if (data.message === '[Không tìm thấy chữ trong ảnh]') {
+                cvStatusText.innerHTML = `<span style="color:var(--warning)">⚠️ Cảnh báo:</span> Không thể nhận diện được chữ trong khung hình.`;
+            } else {
+                cvStatusText.innerHTML = `<span style="color:var(--success)">✅ An toàn:</span> Hình ảnh không chứa yếu tố độc hại (${data.probability}%)`;
+            }
+            
+            if (data.message && data.message !== '[Không tìm thấy chữ trong ảnh]') {
+                cvContentText.style.display = 'block';
+                cvContentText.innerText = `Nội dung: ${data.message}`;
+            }
+
+        } catch (error) {
+            console.error(error);
+            cvStatusText.innerHTML = `<span style="color:var(--danger)">❌ Lỗi:</span> Không thể chụp ảnh hoặc API chưa chạy. Khởi động lại api.py và cấp quyền Extension!`;
+        } finally {
+            scanScreenBtn.disabled = false;
+            scanScreenBtn.innerHTML = originalText;
+        }
     });
 });

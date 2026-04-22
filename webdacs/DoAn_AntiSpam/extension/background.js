@@ -231,3 +231,54 @@ function saveToHistory(url, data) {
         chrome.storage.local.set({ scanHistory: history });
     });
 }
+
+// --- NEW: Auto Screen Capture (CV) ---
+let isAutoScanning = false;
+
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.action === "REQUEST_AUTO_SCAN") {
+        if (isAutoScanning) return; // Nếu đang xử lý ảnh cũ thì bỏ qua nhịp này
+        
+        // Kiểm tra xem tab gửi request có phải là tab đang active không
+        chrome.tabs.query({active: true, currentWindow: true}, (tabs) => {
+            if (!tabs || tabs.length === 0 || tabs[0].id !== sender.tab.id) return;
+            
+            isAutoScanning = true;
+            
+            // Tiến hành chụp màn hình tab hiện tại
+            chrome.tabs.captureVisibleTab(sender.tab.windowId, {format: 'png', quality: 50}, (dataUrl) => {
+                if (chrome.runtime.lastError || !dataUrl) {
+                    console.error("Capture Error:", chrome.runtime.lastError);
+                    isAutoScanning = false;
+                    return;
+                }
+                
+                // Gửi về backend API
+                fetch('http://localhost:5000/predict_image', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ image_url: dataUrl })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.is_spam) {
+                        chrome.notifications.create({
+                            type: 'basic',
+                            iconUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+                            title: "🚨 BÁO ĐỘNG LỪA ĐẢO (CV Auto)",
+                            message: `Hệ thống vừa nhận diện màn hình có rủi ro (${data.probability}%).\nNội dung: ${data.message}`,
+                            priority: 2,
+                            requireInteraction: true // Thông báo ở đỏ giữ lại cho đến khi user tắt
+                        });
+                    }
+                })
+                .catch(err => {
+                    console.error("Auto Scan Error:", err); 
+                })
+                .finally(() => {
+                    isAutoScanning = false; 
+                });
+            });
+        });
+    }
+});

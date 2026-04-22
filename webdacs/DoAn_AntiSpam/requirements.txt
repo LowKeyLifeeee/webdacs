@@ -3,3 +3,6 @@ scikit-learn
 numpy
 pandas
 joblib
+pytesseract
+Pillow
+Flask-Cors

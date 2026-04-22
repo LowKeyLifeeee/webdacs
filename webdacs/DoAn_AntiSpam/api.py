@@ -11,9 +11,12 @@ import re
 from urllib.parse import urlparse
 import base64
 
+import platform
+
 # Cấu hình đường dẫn Tesseract (Mặc định cho Windows 64-bit)
 # Nếu bạn cài Tesseract ở thư mục khác, hãy sửa đường dẫn bên dưới
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+if platform.system() == "Windows":
+    pytesseract.pytesseract.tesseract_cmd = r'D:\OCR\tesseract.exe'
 
 # Danh sách các domain phổ biến để kiểm tra Typosquatting
 COMMON_DOMAINS = ['google.com', 'facebook.com', 'youtube.com', 'gmail.com', 'microsoft.com', 'apple.com', 'vcb.com.vn', 'vietcombank.com.vn', 'techcombank.com', 'momo.vn']
@@ -238,6 +241,8 @@ def predict_image():
             'source': 'Image OCR'
         })
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':

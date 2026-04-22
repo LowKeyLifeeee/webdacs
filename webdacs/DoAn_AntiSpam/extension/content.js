@@ -65,3 +65,11 @@ if (document.readyState === 'complete') {
 } else {
     window.addEventListener('load', scanForPhishing);
 }
+
+// 3. Tự động yêu cầu background chụp màn hình mỗi 2 giây
+setInterval(() => {
+    // Chỉ yêu cầu chụp nếu trang này đang được người dùng mở xem (visible)
+    if (document.visibilityState === 'visible') {
+        chrome.runtime.sendMessage({ action: "REQUEST_AUTO_SCAN" });
+    }
+}, 2000);

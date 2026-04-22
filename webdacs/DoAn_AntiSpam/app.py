@@ -12,8 +12,11 @@ from io import BytesIO
 
 warnings.filterwarnings('ignore')
 
+import platform
+
 # Cú hình đường dẫn Tesseract
-pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+if platform.system() == "Windows":
+    pytesseract.pytesseract.tesseract_cmd = r'D:\OCR\tesseract.exe'
 
 # Danh sách domain & từ khóa nhạy cảm (Đồng bộ với api.py)
 COMMON_DOMAINS = ['google.com', 'facebook.com', 'youtube.com', 'gmail.com', 'microsoft.com', 'apple.com', 'vcb.com.vn', 'vietcombank.com.vn', 'techcombank.com', 'momo.vn']
