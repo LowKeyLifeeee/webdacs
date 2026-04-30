@@ -19,20 +19,68 @@ if platform.system() == "Windows":
     pytesseract.pytesseract.tesseract_cmd = r'D:\OCR\tesseract.exe'
 
 # Danh sách các domain phổ biến để kiểm tra Typosquatting
-COMMON_DOMAINS = ['google.com', 'facebook.com', 'youtube.com', 'gmail.com', 'microsoft.com', 'apple.com', 'vcb.com.vn', 'vietcombank.com.vn', 'techcombank.com', 'momo.vn']
+COMMON_DOMAINS = [
+    'google.com', 'facebook.com', 'youtube.com', 'gmail.com', 'microsoft.com',
+    'apple.com', 'vcb.com.vn', 'vietcombank.com.vn', 'techcombank.com', 'momo.vn',
+    'paypal.com', 'amazon.com', 'netflix.com', 'instagram.com', 'tiktok.com',
+    'zalo.me', 'vietinbank.vn', 'agribank.com.vn', 'mbbank.com.vn'
+]
 
 # Từ khóa nghi vấn trong URL
-SUSPICIOUS_URL_KEYWORDS = ['login', 'verify', 'update', 'secure', 'account', 'banking', 'signin', 'confirm', 'bonus', 'gift']
+SUSPICIOUS_URL_KEYWORDS = [
+    'login', 'verify', 'update', 'secure', 'account', 'banking', 'signin',
+    'confirm', 'bonus', 'gift', 'password', 'passwd', 'credential', 'wallet',
+    'transfer', 'withdraw', 'prize', 'winner', 'claim', 'free', 'lucky',
+    'dangnhap', 'xacnhan', 'capnhat', 'taikhoan', 'matkhau', 'napthe'
+]
+
+# URL shortener phổ biến thường dùng để ẩn URL thật
+URL_SHORTENERS = [
+    'bit.ly', 'tinyurl.com', 'goo.gl', 't.co', 'ow.ly', 'is.gd', 'buff.ly',
+    'adf.ly', 'bc.vc', 'rlu.ru', 'link3.cc', 'shorturl.at', 'rb.gy', 'cutt.ly'
+]
+
+# Free hosting / TLD đáng ngờ
+SUSPICIOUS_TLDS = [
+    '.tk', '.ml', '.ga', '.cf', '.gq', '.xyz', '.top', '.club', '.online',
+    '.site', '.fun', '.icu', '.pw', '.cc', '.vip'
+]
 
 app = Flask(__name__)
 CORS(app)  # Cho phép Extension truy cập vào API
 
-# Danh sách đen từ khóa (Blacklist) cho quảng cáo/cá độ Việt Nam
+# Danh sách đen từ khóa (Blacklist) cho quảng cáo/cờ bạc Việt Nam
 BLACKLIST_KEYWORDS = [
-    'casino', 'cá cược', 'đánh bài', 'siêu hũ', 'nạp lần đầu', 
-    'tặng nạp', 'nhận ngay', 'hũ bạc tỷ', 'ball88', '3bet', 'fabet',
-    'kèo', 'tỉ lệ', 'nhà cái', 'lô đề', 'trúng thưởng', 'iphone', 'quà tặng',
-    'tri ân khách hàng', 'miễn phí', 'click vào link'
+    # Cờ bạc chung
+    'casino', 'cá cược', 'đánh bài', 'tài xỉu', 'xóc đĩa', 'chơi game', 'đánh lô',
+    'lô đề', 'xổ số', 'cược thể thao', 'kèo bóng đá', 'kèo', 'tỉ lệ', 'nhà cái',
+    'slot game', 'jackpot', 'poker', 'bài baccarat', 'baccarat',
+    # Thương hiệu cờ bạc phổ biến
+    'bom88', 'co88', 'ball88', '3bet', '3 bet', 'fabet', 'fb88', 'f8bet',
+    'hobet', 'ho bet', 'kclub', 'k club', 'v9bet', 'w88', 'bet88', 'new88',
+    '789bet', '8xbet', 'go88', 'hit club', 'hitclub', 'kubet',
+    'jun88', 'sunwin', 'iwin', 'shbet', 'vn88', 'live casino', 'livecasino',
+    '79king', '7ball', 'okvip', 'cf68', 'debet', 'mclub', 'mbet',
+    # Cụm từ lừa đảo / thư mồi
+    'siêu hũ', 'hũ bạc tỷ', 'nạp lần đầu', 'tặng nạp', 'nhận ngay',
+    'x2 tiền nạp', 'x3 tiền nạp', 'hoàn trả', 'nạp rút', 'rút tiền nhanh',
+    'trúng thưởng', 'quà tặng', 'tri ân khách hàng', 'miễn phí', 'click vào link',
+    'nhận quà', 'nhận thưởng', 'nhận ngay', 'cổng game', 'chuẩn nhất',
+    'xanh chín', 'live casino', 'gài xinh', 'dealer xinh',
+    # Tiếng Anh cờ bạc
+    'iphone', 'samsung', 'macbook', 'win money', 'bet now', 'play now',
+    'register now', 'join now', 'sign up bonus', 'welcome bonus',
+]
+
+# Từ khóa cờ bạc để kiểm tra trong PATH/filename của URL
+# VD: /ad_banner/bom88.gif → 'bom88' sẽ bị bắt
+GAMBLING_PATH_KEYWORDS = [
+    'bom88', 'co88', 'ball88', '3bet', 'fabet', 'fb88', 'f8bet',
+    'hobet', 'kclub', 'v9bet', 'w88', 'bet88', 'new88', '789bet', '8xbet',
+    'go88', 'hitclub', 'kubet', 'jun88', 'sunwin', 'iwin', 'b52', 'okvip',
+    'cf68', 'debet', '79king', '7ball', 'casino', 'gamble', 'gambling',
+    'poker', 'jackpot', 'lottery', 'lotto', 'betwin', 'winbet',
+    'slot', 'slots', 'wager', 'sportsbet', 'livecasino',
 ]
 
 # Tải mô hình và vectorizer
@@ -48,6 +96,32 @@ except Exception as e:
     print(f"Loi khi tai mo hinh: {e}")
     model = None
     vectorizer = None
+
+# ── CORS + Private Network Access (Chrome 94+) ────────────────────────────
+# Chrome chặn request từ trang public tới localhost → cần header này
+@app.before_request
+def handle_options_preflight():
+    """Xử lý OPTIONS preflight request từ browser"""
+    if request.method == 'OPTIONS':
+        resp = app.make_default_options_response()
+        resp.headers['Access-Control-Allow-Origin']          = '*'
+        resp.headers['Access-Control-Allow-Headers']         = 'Content-Type, Authorization'
+        resp.headers['Access-Control-Allow-Methods']         = 'GET, POST, OPTIONS'
+        resp.headers['Access-Control-Allow-Private-Network'] = 'true'
+        resp.headers['Access-Control-Max-Age']               = '86400'
+        return resp
+
+@app.after_request
+def add_cors(response):
+    response.headers['Access-Control-Allow-Origin']          = '*'
+    response.headers['Access-Control-Allow-Headers']         = 'Content-Type, Authorization'
+    response.headers['Access-Control-Allow-Methods']         = 'GET, POST, OPTIONS'
+    response.headers['Access-Control-Allow-Private-Network'] = 'true'  # Fix Chrome loopback block
+    return response
+
+@app.route('/ping', methods=['GET', 'OPTIONS'])
+def ping():
+    return jsonify({'status': 'ok', 'model_loaded': model is not None, 'version': '2.0'})
 
 @app.route('/predict', methods=['POST'])
 def predict():
@@ -92,60 +166,129 @@ def predict():
     })
 
 def analyze_url(url):
-    """Phân tích các đặc trưng của URL để đánh giá mức độ nguy hiểm"""
+    """Phân tích các đặc trưng của URL để đánh giá mức độ nguy hiểm (nghiêm khắc hơn)"""
     reasons = []
-    score = 0 # 0 là an toàn nhất, 100 là cực kỳ nguy hiểm
-    
+    score = 0  # 0 = an toàn, 100 = cực kỳ nguy hiểm
+
     parsed = urlparse(url)
     hostname = parsed.hostname or ""
     path = parsed.path or ""
-    
-    # 1. Kiểm tra HTTPS
+    query = parsed.query or ""
+    url_lower = url.lower()
+
+    # 1. Không dùng HTTPS
     if parsed.scheme != 'https':
         reasons.append("Không sử dụng HTTPS (Thiếu chứng chỉ bảo mật)")
-        score += 30
-        
-    # 2. Kiểm tra IP thay vì Domain
+        score += 25
+
+    # 2. Dùng địa chỉ IP thay vì tên miền
     ip_pattern = r'^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$'
     if re.match(ip_pattern, hostname):
         reasons.append("Sử dụng địa chỉ IP thay vì tên miền (Dấu hiệu lừa đảo cao)")
         score += 50
-        
-    # 3. Kiểm tra độ dài URL
+
+    # 3. URL quá dài
     if len(url) > 75:
-        reasons.append("URL có độ dài bất thường (>75 ký tự)")
+        reasons.append(f"URL có độ dài bất thường ({len(url)} ký tự, >75)")
+        score += 10
+    if len(url) > 120:
+        reasons.append("URL cực kỳ dài (>120 ký tự) - thường dùng để ẩn đích thật")
         score += 15
-        
-    # 4. Kiểm tra ký tự lạ và số lượng dấu chấm
-    if hostname.count('.') > 3:
-        reasons.append("Tên miền có quá nhiều cấp (Subdomains bất thường)")
+
+    # 4. Quá nhiều subdomain
+    dot_count = hostname.count('.')
+    if dot_count > 3:
+        reasons.append(f"Tên miền có quá nhiều cấp ({dot_count} dấu chấm - subdomain bất thường)")
         score += 20
-        
-    # 5. Kiểm tra Typosquatting (Giả mạo tên miền)
+    elif dot_count > 2:
+        score += 8
+
+    # 5. Typosquatting / Giả mạo thương hiệu
     for common in COMMON_DOMAINS:
-        # Nếu hostname chứa tên domain phổ biến nhưng không phải chính nó
-        # Ví dụ: g00gle.com, google-security.com
-        if common.split('.')[0] in hostname and hostname != common and not hostname.endswith('.' + common):
+        brand = common.split('.')[0]
+        if brand in hostname and hostname != common and not hostname.endswith('.' + common):
             reasons.append(f"Tên miền có dấu hiệu giả mạo thương hiệu: {common}")
             score += 45
             break
-            
-    # 6. Kiểm tra từ khóa nghi vấn
-    for word in SUSPICIOUS_URL_KEYWORDS:
-        if word in url.lower():
-            reasons.append(f"Chứa từ khóa nhạy cảm thường gặp trong phishing: '{word}'")
-            score += 10
-            
+
+    # 6. Từ khóa nhạy cảm trong URL
+    hit_keywords = [w for w in SUSPICIOUS_URL_KEYWORDS if w in url_lower]
+    for word in hit_keywords:
+        reasons.append(f"Chứa từ khóa nhạy cảm phishing: '{word}'")
+        score += 10
+
+    # 7. URL Shortener - che giấu đích thật
+    if any(s in hostname for s in URL_SHORTENERS):
+        reasons.append("Sử dụng dịch vụ rút gọn URL (che giấu địa chỉ thật)")
+        score += 30
+
+    # 8. TLD đáng ngờ (thường dùng cho trang lừa đảo)
+    for tld in SUSPICIOUS_TLDS:
+        if hostname.endswith(tld):
+            reasons.append(f"Tên miền sử dụng TLD đáng ngờ: '{tld}'")
+            score += 20
+            break
+
+    # 9. Ký tự mã hóa / encoded chars trong path (ẩn payload)
+    if '%' in path and path.count('%') > 3:
+        reasons.append("Path URL chứa nhiều ký tự mã hóa bất thường (có thể ẩn nội dung độc)")
+        score += 15
+
+    # 10. Dấu '@' trong URL (lừa trình duyệt về hostname)
+    if '@' in url:
+        reasons.append("URL chứa ký tự '@' (kỹ thuật đánh lừa trình duyệt về tên miền thật)")
+        score += 40
+
+    # 11. Dấu '-' quá nhiều trong domain (google-login-secure.com)
+    if hostname.count('-') > 2:
+        reasons.append(f"Tên miền chứa nhiều dấu gạch ngang ({hostname.count('-')}) - dấu hiệu giả mạo")
+        score += 15
+
+    # 12. Punycode / IDN homoglyph (xn-- prefix)
+    if 'xn--' in hostname:
+        reasons.append("Tên miền sử dụng Punycode (IDN) - có thể giả mạo chữ bằng ký tự Unicode")
+        score += 35
+
+    # 13. Nhiều tham số query bất thường
+    if query.count('=') > 5:
+        reasons.append("URL có quá nhiều tham số query (hành vi bất thường)")
+        score += 10
+
+    # 14. ★ Phân tích PATH và FILENAME chứa từ khóa cờ bạc
+    #     VD: /ad_banner/bom88.gif?v=1.8 → bắt được 'bom88'
+    import os as _os
+    path_parts = [p.lower() for p in path.split('/') if p]
+    # Bóc filename không có extension
+    path_tokens = set()
+    for part in path_parts:
+        path_tokens.add(part)                              # full segment
+        noext = _os.path.splitext(part)[0]               # bỏ đuôi file
+        path_tokens.add(noext)
+        for token in re.split(r'[-_.]', noext):           # tách theo - _ .
+            if len(token) > 1:
+                path_tokens.add(token)
+    # Kiểm tra query string cũng
+    for param_pair in query.lower().split('&'):
+        for token in re.split(r'[=&]', param_pair):
+            if len(token) > 1:
+                path_tokens.add(token)
+
+    path_hits = [kw for kw in GAMBLING_PATH_KEYWORDS if kw in path_tokens]
+    if path_hits:
+        reasons.append(f"⚠️ Phát hiện từ khóa cờ bạc trong đường dẫn URL: {', '.join(path_hits)}")
+        score += 55  # Score cao vì đây là dấu hiệu rất rõ ràng
+
+    # Xác định mức độ nguy hiểm (ngưỡng thấp hơn = nhạy hơn)
     status = "An toàn"
-    status_code = "safe" # safe, suspicious, dangerous
-    
-    if score >= 70:
-        status = "Nguy hiểm (Phishing)"
+    status_code = "safe"
+
+    if score >= 50:
+        status = "Nguy hiểm (Phishing/Cờ bạc)"
         status_code = "dangerous"
-    elif score >= 30:
+    elif score >= 20:
         status = "Nghi ngờ"
         status_code = "suspicious"
-        
+
     return {
         "score": min(score, 100),
         "status": status,
@@ -243,6 +386,64 @@ def predict_image():
     except Exception as e:
         import traceback
         traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+import json
+import datetime
+
+REPORT_FILE = os.path.join(current_dir, 'feedback_reports.json')
+
+@app.route('/report', methods=['POST'])
+def report_feedback():
+    """
+    Nhận báo cáo ẩn danh từ extension (False Positive / False Negative).
+    Dữ liệu được lưu vào file JSON local để huấn luyện lại mô hình định kỳ.
+    """
+    data = request.json
+    if not data or 'report_type' not in data:
+        return jsonify({'error': 'Thiếu thông tin báo cáo'}), 400
+
+    report_type = data.get('report_type')  # 'false_positive' | 'false_negative'
+    if report_type not in ('false_positive', 'false_negative'):
+        return jsonify({'error': 'Loại báo cáo không hợp lệ'}), 400
+
+    # Chỉ lưu thông tin tối thiểu - ẩn danh hoàn toàn
+    entry = {
+        'report_type': report_type,
+        'element_type': data.get('element_type', 'text'),
+        'content': data.get('content', '')[:500],       # Giới hạn 500 ký tự
+        'page_domain': data.get('page_domain', ''),      # Chỉ lưu domain, không URL đầy đủ
+        'timestamp': datetime.datetime.utcnow().isoformat() + 'Z'
+    }
+
+    # Đọc danh sách hiện tại và append
+    try:
+        if os.path.exists(REPORT_FILE):
+            with open(REPORT_FILE, 'r', encoding='utf-8') as f:
+                reports = json.load(f)
+        else:
+            reports = []
+        reports.append(entry)
+        with open(REPORT_FILE, 'w', encoding='utf-8') as f:
+            json.dump(reports, f, ensure_ascii=False, indent=2)
+        print(f"[Report] Đã nhận báo cáo '{report_type}' từ {entry['page_domain']}")
+        return jsonify({'status': 'ok', 'message': 'Cảm ơn! Báo cáo đã được ghi nhận.'}), 200
+    except Exception as e:
+        print(f"[Report] Lỗi ghi file: {e}")
+        return jsonify({'error': 'Không thể lưu báo cáo'}), 500
+
+@app.route('/report/stats', methods=['GET'])
+def report_stats():
+    """Thống kê số lượng báo cáo - dùng để theo dõi chất lượng mô hình."""
+    try:
+        if not os.path.exists(REPORT_FILE):
+            return jsonify({'total': 0, 'false_positive': 0, 'false_negative': 0})
+        with open(REPORT_FILE, 'r', encoding='utf-8') as f:
+            reports = json.load(f)
+        fp = sum(1 for r in reports if r.get('report_type') == 'false_positive')
+        fn = sum(1 for r in reports if r.get('report_type') == 'false_negative')
+        return jsonify({'total': len(reports), 'false_positive': fp, 'false_negative': fn})
+    except Exception as e:
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':

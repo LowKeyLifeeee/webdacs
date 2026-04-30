@@ -1,16 +1,54 @@
 // Background Script - Xử lý Menu chuột phải
 chrome.runtime.onInstalled.addListener(() => {
-    chrome.contextMenus.create({
-        id: "checkSpamImage",
-        title: "Kiểm tra Spam từ ảnh này 🛡️",
-        contexts: ["image"]
-    });
-    
-    // Thêm Menu chuột phải khi bôi đen chữ hoặc click chuột phải vào Link
-    chrome.contextMenus.create({
-        id: "checkSpamTextOrLink",
-        title: "Kiểm tra đoạn tin nhắn hoặc URL này 🛡️",
-        contexts: ["selection", "link"]
+    // Xóa tất cả menu cũ trước khi tạo lại (tránh lỗi trùng ID khi reload)
+    chrome.contextMenus.removeAll(() => {
+
+        // ── Menu CHA: luôn xuất hiện cho mọi trường hợp ──────────────────
+        chrome.contextMenus.create({
+            id: "antispamParent",
+            title: "🛡️ Anti-Spam Detector (Pro)",
+            contexts: ["image", "selection", "link", "page"]
+        });
+
+        // ── Sub-menu 1: Kiểm tra ảnh (hiện khi click phải vào ảnh) ───────
+        chrome.contextMenus.create({
+            id: "checkSpamImage",
+            parentId: "antispamParent",
+            title: "📸 Kiểm tra Spam từ ảnh này",
+            contexts: ["image", "page"]   // "page" = fallback khi không có gì khác
+        });
+
+        // ── Sub-menu 2: Kiểm tra text/URL (hiện khi bôi đen hoặc link) ───
+        chrome.contextMenus.create({
+            id: "checkSpamTextOrLink",
+            parentId: "antispamParent",
+            title: "💬 Kiểm tra đoạn tin nhắn hoặc URL",
+            contexts: ["selection", "link", "page"]
+        });
+
+        // ── Sub-menu 3: Quét URL trang hiện tại ──────────────────────────
+        chrome.contextMenus.create({
+            id: "checkCurrentPage",
+            parentId: "antispamParent",
+            title: "🔗 Phân tích URL trang này",
+            contexts: ["image", "selection", "link", "page"]
+        });
+
+        // ── Separator ─────────────────────────────────────────────────────
+        chrome.contextMenus.create({
+            id: "separator1",
+            parentId: "antispamParent",
+            type: "separator",
+            contexts: ["image", "selection", "link", "page"]
+        });
+
+        // ── Sub-menu 4: Báo cáo trang lừa đảo ────────────────────────────
+        chrome.contextMenus.create({
+            id: "reportPage",
+            parentId: "antispamParent",
+            title: "🚨 Báo cáo trang này là lừa đảo",
+            contexts: ["image", "selection", "link", "page"]
+        });
     });
 });
 
@@ -134,6 +172,71 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
                 priority: 2
             });
         });
+
+    } else if (info.menuItemId === "checkCurrentPage") {
+        // ── Phân tích URL trang hiện tại ─────────────────────────────────
+        const url = tab.url;
+        if (!url || !url.startsWith('http')) return;
+
+        chrome.notifications.create({
+            type: 'basic',
+            iconUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+            title: '🔎 Đang phân tích URL...',
+            message: url.substring(0, 100)
+        });
+
+        fetch('http://localhost:5000/predict-url', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: url })
+        })
+        .then(r => r.json())
+        .then(data => {
+            const icon = data.status_code === 'dangerous' ? '🔴' :
+                         data.status_code === 'suspicious' ? '🟡' : '🟢';
+            const reasons = (data.reasons || []).slice(0, 3).join('\n• ') || 'Không có dấu hiệu bất thường';
+            chrome.notifications.create({
+                type: 'basic',
+                iconUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+                title: `${icon} ${data.status} (Điểm: ${data.score}/100)`,
+                message: `• ${reasons}`,
+                priority: 2
+            });
+        })
+        .catch(() => {
+            chrome.notifications.create({
+                type: 'basic',
+                iconUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+                title: '❌ Lỗi kết nối API',
+                message: 'Hãy chắc chắn api.py đang chạy!',
+                priority: 2
+            });
+        });
+
+    } else if (info.menuItemId === "reportPage") {
+        // ── Báo cáo trang lừa đảo ────────────────────────────────────────
+        const url = tab.url;
+        fetch('http://localhost:5000/report', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                report_type: 'false_negative',
+                element_type: 'page',
+                content: url,
+                page_domain: new URL(url).hostname,
+                timestamp: new Date().toISOString()
+            })
+        })
+        .then(() => {
+            chrome.notifications.create({
+                type: 'basic',
+                iconUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+                title: '✅ Đã gửi báo cáo',
+                message: `Cảm ơn! Trang ${new URL(url).hostname} đã được ghi nhận là lừa đảo.`,
+                priority: 1
+            });
+        })
+        .catch(() => {});
     }
 });
 

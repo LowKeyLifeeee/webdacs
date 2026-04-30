@@ -26,9 +26,7 @@
       overflow-x: hidden;
     }
 
-    .container {
-      padding: 20px;
-    }
+    .container { padding: 20px; }
 
     .header {
       display: flex;
@@ -63,29 +61,12 @@
       transition: all 0.3s ease;
     }
 
-    .status-icon {
-      font-size: 40px;
-      margin-bottom: 12px;
-      display: block;
-    }
-
-    .status-text {
-      font-size: 18px;
-      font-weight: 600;
-      margin-bottom: 4px;
-    }
-
-    .status-desc {
-      font-size: 13px;
-      color: #94a3b8;
-    }
+    .status-icon { font-size: 40px; margin-bottom: 12px; display: block; }
+    .status-text { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+    .status-desc { font-size: 13px; color: #94a3b8; }
 
     /* Analysis Details */
-    .details-section {
-      display: none;
-      margin-top: 16px;
-      text-align: left;
-    }
+    .details-section { display: none; margin-top: 16px; text-align: left; }
 
     .details-title {
       font-size: 14px;
@@ -108,9 +89,7 @@
     }
 
     /* Input Area */
-    .input-group {
-      margin-top: 24px;
-    }
+    .input-group { margin-top: 24px; }
 
     textarea {
       width: 100%;
@@ -132,7 +111,8 @@
       border-color: var(--primary);
     }
 
-    button {
+    /* Global button - chỉ áp dụng cho các action button chính */
+    .action-btn {
       width: 100%;
       padding: 12px;
       margin-top: 12px;
@@ -142,16 +122,101 @@
       border-radius: 12px;
       font-weight: 600;
       cursor: pointer;
+      font-family: inherit;
+      font-size: 14px;
       transition: transform 0.2s, opacity 0.2s;
     }
 
-    button:hover {
-      opacity: 0.9;
-      transform: translateY(-1px);
+    .action-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+    .action-btn:active { transform: translateY(0); }
+    .action-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    /* Tab buttons */
+    .tab-btn {
+      flex: 1;
+      padding: 8px;
+      font-size: 13px;
+      font-family: inherit;
+      font-weight: 600;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.2s;
+      color: #f8fafc;
     }
 
-    button:active {
-      transform: translateY(0);
+    /* Inline mini action buttons (whitelist/blacklist) */
+    .inline-btn {
+      flex: 1;
+      padding: 6px;
+      font-size: 11px;
+      font-family: inherit;
+      font-weight: 600;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.15s;
+      color: inherit;
+    }
+    .inline-btn:hover { opacity: 0.85; transform: scale(1.02); }
+
+    /* ── Nút báo cáo (report buttons) ── */
+    .report-toolbar {
+      display: flex;
+      gap: 6px;
+      margin-top: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .report-label {
+      font-size: 10px;
+      color: #64748b;
+      white-space: nowrap;
+    }
+
+    .report-btn {
+      flex: 1;
+      padding: 5px 8px;
+      font-size: 10px;
+      font-weight: 600;
+      font-family: inherit;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: opacity 0.2s, transform 0.15s;
+      white-space: nowrap;
+      min-width: 0;
+    }
+
+    .report-btn:hover { opacity: 0.85; transform: scale(1.03); }
+
+    .report-btn-fp {
+      background: rgba(16, 185, 129, 0.2);
+      color: #10b981;
+      border: 1px solid #10b981;
+    }
+
+    .report-btn-fn {
+      background: rgba(245, 158, 11, 0.2);
+      color: #f59e0b;
+      border: 1px solid #f59e0b;
+    }
+
+    .report-btn.sent {
+      background: rgba(100, 116, 139, 0.2);
+      color: #64748b;
+      border-color: #64748b;
+      cursor: default;
+      pointer-events: none;
+    }
+
+    .report-sent-msg {
+      font-size: 11px;
+      padding: 4px 0;
+      animation: fadein 0.3s ease;
+    }
+
+    @keyframes fadein {
+      from { opacity: 0; transform: translateY(-3px); }
+      to   { opacity: 1; transform: translateY(0); }
     }
 
     .footer {
@@ -161,7 +226,7 @@
       color: #64748b;
     }
 
-    /* Variations */
+    /* Status color variants */
     .status-safe { border-color: var(--success); }
     .status-safe .status-text { color: var(--success); }
     .status-warning { border-color: var(--warning); }
@@ -179,8 +244,8 @@
 
     <!-- Tabs -->
     <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-      <button id="homeTab" style="flex: 1; padding: 8px; font-size: 13px; background: var(--glass); border: 1px solid var(--glass-border);">🛡️ Bảo vệ</button>
-      <button id="historyTab" style="flex: 1; padding: 8px; font-size: 13px; background: transparent; border: 1px solid var(--glass-border);">🕒 Lịch sử</button>
+      <button id="homeTab" class="tab-btn" style="background: var(--glass); border: 1px solid var(--glass-border);">🛡️ Bảo vệ</button>
+      <button id="historyTab" class="tab-btn" style="background: transparent; border: 1px solid var(--glass-border);">🕒 Lịch sử</button>
     </div>
 
     <div id="homeView">
@@ -189,7 +254,7 @@
         <span id="siteIcon" class="status-icon">🌐</span>
         <div id="siteStatusText" class="status-text">Đang phân tích trang...</div>
         <div id="siteStatusDesc" class="status-desc">Vui lòng đợi giây lát</div>
-        
+
         <div id="analysisDetails" class="details-section">
           <div class="details-title">🔍 Chi tiết phân tích:</div>
           <div id="reasonsList"></div>
@@ -197,8 +262,8 @@
 
         <!-- Whitelist / Blacklist Actions -->
         <div style="display: flex; gap: 8px; margin-top: 16px;">
-          <button id="whitelistBtn" style="flex: 1; padding: 6px; font-size: 11px; background: rgba(16, 185, 129, 0.2); color: var(--success); border: 1px solid var(--success);">🛡️ Tin tưởng</button>
-          <button id="blacklistBtn" style="flex: 1; padding: 6px; font-size: 11px; background: rgba(239, 68, 68, 0.2); color: var(--danger); border: 1px solid var(--danger);">🚫 Chặn trang</button>
+          <button id="whitelistBtn" class="inline-btn" style="background: rgba(16,185,129,0.2); color: var(--success); border: 1px solid var(--success);">🛡️ Tin tưởng</button>
+          <button id="blacklistBtn" class="inline-btn" style="background: rgba(239,68,68,0.2); color: var(--danger); border: 1px solid var(--danger);">🚫 Chặn trang</button>
         </div>
       </div>
 
@@ -206,7 +271,7 @@
 
       <!-- Scan Computer Vision Button -->
       <div style="margin-bottom: 20px;">
-        <button id="scanScreenBtn" style="background: linear-gradient(135deg, #4f46e5, #ec4899); border: none; border-radius: 12px; padding: 14px; font-size: 14px; font-weight: 600; width: 100%; cursor: pointer; color: white; display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 15px rgba(236, 72, 153, 0.3);">
+        <button id="scanScreenBtn" style="background: linear-gradient(135deg, #4f46e5, #ec4899); border: none; border-radius: 12px; padding: 14px; font-size: 14px; font-family: inherit; font-weight: 600; width: 100%; cursor: pointer; color: white; display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 15px rgba(236,72,153,0.3);">
           <span style="font-size: 20px;">📸</span>
           <span>Quét Toàn Màn Hình (Computer Vision)</span>
         </button>
@@ -216,6 +281,8 @@
         <div class="status-card" style="padding: 12px; font-size: 13px; text-align: left;">
           <div id="cvStatusText" style="margin-bottom: 8px;"></div>
           <div id="cvContentText" style="font-size: 12px; color: #94a3b8; font-style: italic; max-height: 80px; overflow-y: auto; background: rgba(0,0,0,0.2); padding: 8px; border-radius: 8px; display: none;"></div>
+          <!-- Nút báo cáo cho CV scan -->
+          <div id="cvReportArea"></div>
         </div>
       </div>
 
@@ -223,12 +290,14 @@
       <div class="input-group">
         <div class="details-title">⌨️ Kiểm tra tin nhắn nhanh:</div>
         <textarea id="textInput" placeholder="Dán nội dung tin nhắn nghi ngờ vào đây..."></textarea>
-        <button id="checkBtn">Phân tích bằng AI</button>
+        <button id="checkBtn" class="action-btn">🔍 Phân tích bằng AI</button>
       </div>
 
       <div id="manualResult" style="margin-top: 15px; display: none;">
-        <div class="status-card" style="padding: 12px; font-size: 14px;">
+        <div class="status-card" style="padding: 14px; font-size: 14px; text-align: left;">
           <span id="manualStatusText"></span>
+          <!-- Nút báo cáo được inject vào đây -->
+          <div id="manualReportArea"></div>
         </div>
       </div>
     </div>
@@ -242,7 +311,7 @@
     </div>
 
     <div class="footer">
-      AI Powered Protection • Version 2.0
+      AI Powered Protection • Version 2.1
     </div>
   </div>
   <script src="popup.js"></script>

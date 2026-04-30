@@ -1,24 +1,44 @@
 {
   "manifest_version": 3,
   "name": "Anti-Spam Detector (Pro)",
-  "version": "1.1",
-  "description": "Tự động phát hiện spam trên trang web và kiểm tra ảnh.",
-  "permissions": ["contextMenus", "activeTab", "scripting", "notifications", "tabs", "storage"],
+  "version": "2.0",
+  "description": "Tự động phát hiện spam, lừa đảo, cờ bạc trên trang web.",
+
+  "permissions": [
+    "contextMenus",
+    "activeTab",
+    "scripting",
+    "notifications",
+    "tabs",
+    "storage"
+  ],
+
+  "host_permissions": [
+    "http://localhost:5000/*",
+    "<all_urls>"
+  ],
+
   "action": {
     "default_popup": "popup.html"
   },
+
   "background": {
     "service_worker": "background.js"
   },
+
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
       "js": ["content.js"],
-      "run_at": "document_idle"
+      "run_at": "document_idle",
+      "all_frames": false
     }
   ],
-  "host_permissions": [
-    "http://localhost:5000/*",
-    "<all_urls>"
+
+  "web_accessible_resources": [
+    {
+      "resources": ["*.js"],
+      "matches": ["<all_urls>"]
+    }
   ]
 }
