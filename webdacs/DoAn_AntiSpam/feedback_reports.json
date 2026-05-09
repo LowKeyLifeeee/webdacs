@@ -131,5 +131,29 @@
     "page_domain": "animevietsub.site",
     "redirect_url": "https://gemwin.is/?a=d0436ef1c5635a77a41ee298b42e0fc8&utm_source=animevietsubapp&utm_medium=topbanner3&utm_campaign=cpd&utm_term=phim",
     "timestamp": "2026-05-09T11:20:07.300966Z"
+  },
+  {
+    "report_type": "false_positive",
+    "element_type": "text",
+    "content": "TRỌN BỘ \"SIÊU QUÀ TẶNG\" TÁI HIỆN THẾ GIỚI BÌNH NGUYÊN VÔ TẬN\n​\nToàn bộ Bình Nguyên Vô Tận được gói trọn trong bộ quà tặng Chung Kết Quốc Gia - Đấu Trường Danh Vọng Mùa Xuân 2026.\n​\nKhiên Danh Vọng, Bùa Đỏ cùng Tà Thần Caesar đều được khắc chạm tỉ mỉ, truyền tải trọn thông điệp của Liên Quân Mobile.\n​\n👉 Các bạn nghĩ sao về bộ quà tặng này? Cùng đón chờ Ngày Hội Esports 10.05 sắp tới nhé!!!",
+    "page_domain": "popup_manual_check",
+    "redirect_url": "",
+    "timestamp": "2026-05-09T15:49:11.317688Z"
+  },
+  {
+    "report_type": "false_negative",
+    "element_type": "image",
+    "content": "CHÉP ĐỔI SINH VIÊN XIN CHÚC MỪNG CÁC THANH MAI TRÚC MÃ #rapxiesinhvien",
+    "page_domain": "popup_manual_check",
+    "redirect_url": "",
+    "timestamp": "2026-05-09T15:49:48.925440Z"
+  },
+  {
+    "report_type": "false_negative",
+    "element_type": "image",
+    "content": "Cố đầu b! Nức tung cỡ nhịp😡 ngày ngày cưới😡🤣👉",
+    "page_domain": "popup_manual_check",
+    "redirect_url": "",
+    "timestamp": "2026-05-09T16:16:55.353830Z"
   }
 ]

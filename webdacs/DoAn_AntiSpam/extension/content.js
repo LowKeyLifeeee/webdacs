@@ -19,27 +19,27 @@ const PHISHING_KEYWORDS = [
     'trúng thưởng', 'nhận quà', 'tri ân',
     'casino', 'cá cược', 'đánh bài', 'tài xỉu', 'xóc đĩa', 'lô đề', 'xổ số',
     'jackpot', 'slot', 'baccarat', 'poker', 'nhà cái', 'kèo', 'cược',
-    'bom88', 'co88', 'ball88', '3bet', 'fabet', 'hobet', 'kclub', 'fb88',
-    'v9bet', 'w88', 'bet88', 'new88', '789bet', '8xbet', 'go88', 'kubet',
-    'jun88', 'sunwin', 'iwin', 'hitclub', 'b52', 'okvip', 'cf68', 'debet',
+    'bom88', 'co88', 'ball88', 'fabet', 'hobet', 'kclub', 'fb88',
+    'v9bet', 'bet88', 'new88', '789bet', '8xbet', 'go88', 'kubet',
+    'jun88', 'sunwin', 'iwin', 'hitclub', 'okvip', 'cf68', 'debet',
     'siêu hũ', 'hũ bạc tỷ', 'nạp lần đầu', 'tặng nạp', 'x2 tiền', 'x3 tiền',
     'hoàn trả', 'rút tiền', 'nhận ngay', 'cổng game', 'xanh chín',
     'live casino', 'dealer', 'sign up bonus', 'welcome bonus'
 ];
 
 const GAMBLING_IMG_KEYWORDS = [
-    'bom88', 'co88', 'ball88', '3bet', 'fabet', 'hobet', 'kclub', 'fb88', 'f8bet',
-    'v9bet', 'w88', 'bet88', 'new88', '789bet', '8xbet', 'go88', 'kubet',
-    'jun88', 'sunwin', 'iwin', 'hitclub', 'b52', 'okvip', 'cf68', 'debet',
+    'bom88', 'co88', 'ball88', 'fabet', 'hobet', 'kclub', 'fb88', 'f8bet',
+    'v9bet', 'bet88', 'new88', '789bet', '8xbet', 'go88', 'kubet',
+    'jun88', 'sunwin', 'iwin', 'hitclub', 'okvip', 'cf68', 'debet',
     '79king', '7ball', 'casino', 'gamble', 'gambling', 'poker', 'jackpot',
     'lottery', 'lotto', 'betwin', 'winbet', 'slot', 'wager', 'livecasino',
     'sportsbet', 'ad_banner', 'quảng cáo', 'banner_ads', 'promo'
 ];
 
 const GAMBLING_URL_KEYWORDS = [
-    'bom88', 'co88', 'ball88', '3bet', 'fabet', 'hobet', 'kclub', 'v9bet',
-    'w88', 'new88', '789bet', '8xbet', 'go88', 'kubet', 'jun88', 'sunwin',
-    'iwin', 'hitclub', 'b52', 'okvip', 'cf68', 'debet', 'jackpot', 'casino',
+    'bom88', 'co88', 'ball88', 'fabet', 'hobet', 'kclub', 'v9bet',
+    'new88', '789bet', '8xbet', 'go88', 'kubet', 'jun88', 'sunwin',
+    'iwin', 'hitclub', 'okvip', 'cf68', 'debet', 'jackpot', 'casino',
     'gamble', 'gambling', 'poker', 'lottery', 'lotto', 'betwin', 'wager',
     'livecasino', 'sportsbet', 'slot', 'bet88'
 ];
@@ -454,16 +454,23 @@ async function runOCR(imgEl, src) {
             reader.readAsDataURL(blob);
         });
 
-        const res = await fetch(`${API_BASE}/predict_image`, {
+        // Lấy toàn bộ văn bản của bài viết (tìm lên cấp thứ 5 để lấy đoạn div lớn chứa chữ)
+        let parent = imgEl.parentElement;
+        for(let i = 0; i < 5; i++) {
+            if(parent && parent.parentElement) parent = parent.parentElement;
+        }
+        const postText = parent ? parent.innerText : '';
+
+        const res = await fetch(`${API_BASE}/predict_post`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ image_url: base64 })
+            body: JSON.stringify({ image_url: base64, text: postText })
         });
         const data = await res.json();
 
         if (data.is_spam && !imgEl.dataset.antispamDone) {
-            console.warn(`[AntiSpam] OCR spam: ${data.message}`);
-            highlightImage(imgEl, `OCR phát hiện: ${data.message}`);
+            console.warn(`[AntiSpam] Ảnh+Chữ spam: ${data.message}`);
+            highlightImage(imgEl, `AI phát hiện (Ảnh+Chữ): ${data.message}`);
         }
     } catch (e) { /* CORS / network */ }
 }

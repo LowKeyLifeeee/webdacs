@@ -1,0 +1,9 @@
+# Bỏ qua các file và thư mục AI siêu nặng
+**/phobert-phishing-model/
+**/drive-download-*/
+**/tessdata/
+__pycache__/
+*.pth
+*.pt
+*.safetensors
+*.bin
