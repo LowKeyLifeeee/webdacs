@@ -10,8 +10,14 @@ from io import BytesIO
 import re
 from urllib.parse import urlparse
 import base64
+import json
 
 import platform
+
+# Cấu hình DeepSeek API (thông qua ds2api local)
+DEEPSEEK_API_URL = os.environ.get("DEEPSEEK_API_URL", "http://127.0.0.1:5001/v1/chat/completions")
+# Thay chuỗi bên dưới bằng userToken bạn lấy được từ trang chat.deepseek.com
+DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "eB2QYQraDDrH5TT2UcRntsu5UtD1189bD+fiRbgYcjs5butLEzadsgMx7ilOtT+0")
 
 # Cấu hình đường dẫn Tesseract (Mặc định cho Windows 64-bit)
 # Nếu bạn cài Tesseract ở thư mục khác, hãy sửa đường dẫn bên dưới
@@ -56,8 +62,8 @@ BLACKLIST_KEYWORDS = [
     'lô đề', 'xổ số', 'cược thể thao', 'kèo bóng đá', 'kèo', 'tỉ lệ', 'nhà cái',
     'slot game', 'jackpot', 'poker', 'bài baccarat', 'baccarat',
     # Thương hiệu cờ bạc phổ biến
-    'bom88', 'co88', 'ball88', '3bet', '3 bet', 'fabet', 'fb88', 'f8bet',
-    'hobet', 'ho bet', 'kclub', 'k club', 'v9bet', 'w88', 'bet88', 'new88',
+    'bom88', 'co88', 'ball88', '3bet', '3 bet', 'fabet', 'f8bet',
+    'hobet', 'bet', 'kclub', 'club', 'v9bet', 'bet88', 'new88',
     '789bet', '8xbet', 'go88', 'hit club', 'hitclub', 'kubet',
     'jun88', 'sunwin', 'iwin', 'shbet', 'vn88', 'live casino', 'livecasino',
     '79king', '7ball', 'okvip', 'cf68', 'debet', 'mclub', 'mbet',
@@ -77,7 +83,7 @@ BLACKLIST_KEYWORDS = [
 GAMBLING_PATH_KEYWORDS = [
     'bom88', 'co88', 'ball88', '3bet', 'fabet', 'fb88', 'f8bet',
     'hobet', 'kclub', 'v9bet', 'w88', 'bet88', 'new88', '789bet', '8xbet',
-    'go88', 'hitclub', 'kubet', 'jun88', 'sunwin', 'iwin', 'b52', 'okvip',
+    'go88', 'hitclub', 'kubet', 'jun88', 'sunwin', 'iwin', 'okvip',
     'cf68', 'debet', '79king', '7ball', 'casino', 'gamble', 'gambling',
     'poker', 'jackpot', 'lottery', 'lotto', 'betwin', 'winbet',
     'slot', 'slots', 'wager', 'sportsbet', 'livecasino',
@@ -125,9 +131,6 @@ def ping():
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    if not model or not vectorizer:
-        return jsonify({'error': 'Mô hình chưa được tải'}), 500
-    
     data = request.json
     if not data or 'message' not in data:
         return jsonify({'error': 'Thiếu nội dung tin nhắn'}), 400
@@ -145,7 +148,20 @@ def predict():
                 'source': f'Blacklist Match ({word})'
             })
 
-    # Bước 2: Nếu không dính blacklist mới dùng AI
+    # Bước 2: Sử dụng DeepSeek API để phân tích
+    ds_result = analyze_text_with_deepseek(message)
+    if ds_result:
+        return jsonify({
+            'is_spam': ds_result['is_spam'],
+            'probability': round(ds_result['probability'], 2),
+            'message': message,
+            'source': ds_result['source']
+        })
+
+    # Bước 3: Nếu DeepSeek lỗi, Fallback về model local
+    if not model or not vectorizer:
+        return jsonify({'error': 'DeepSeek API lỗi và Mô hình local chưa được tải'}), 500
+    
     message_tfidf = vectorizer.transform([message])
     prediction = model.predict(message_tfidf)[0]
     
@@ -302,15 +318,152 @@ def predict_url():
     url = data.get('url')
     if not url:
         return jsonify({'error': 'Thiếu URL'}), 400
-        
+
+    # ══ Bước 0: Kiểm tra danh sách đen tự học từ báo cáo người dùng ══
+    try:
+        parsed_hostname = urlparse(url).hostname or ''
+        bad_domains = load_bad_domains()
+        if parsed_hostname in bad_domains:
+            entry = bad_domains[parsed_hostname]
+            return jsonify({
+                'score': 100,
+                'status': 'Nguy hiểm (Đã bị báo cáo)',
+                'status_code': 'dangerous',
+                'reasons': [
+                    f"🚨 Domain này đã được cộng đồng báo cáo {entry.get('report_count', 1)} lần là link lừa đảo/cờ bạc.",
+                    f"🔗 Link chuyển hướng gốc: {entry.get('redirect_url', url)}",
+                    f"🗓️ Lần đầu bị báo cáo: {entry.get('first_seen', 'N/A')}"
+                ]
+            })
+    except Exception:
+        pass
+
     analysis = analyze_url(url)
     return jsonify(analysis)
 
+def analyze_text_with_deepseek(text):
+    """Gọi DeepSeek API thông qua ds2api để phân tích văn bản"""
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {DEEPSEEK_API_KEY}"
+    }
+    prompt = f"""Bạn là một chuyên gia an ninh mạng và hệ thống chống lừa đảo (Anti-Phishing/Spam). 
+Nhiệm vụ của bạn là phân tích đoạn văn bản dưới đây và xác định xem nó có chứa nội dung độc hại không.
+
+Các loại nội dung độc hại bao gồm:
+1. Lừa đảo (Phishing): Mạo danh ngân hàng, cơ quan chức năng, yêu cầu cung cấp mã OTP, mật khẩu, thông tin cá nhân.
+2. Tin nhắn rác (Spam): Quảng cáo không mong muốn, tin nhắn trúng thưởng giả mạo, kêu gọi đầu tư sinh lời cao ảo, làm việc nhẹ lương cao.
+3. Cờ bạc/Cá cược: Các trang web tài xỉu, lô đề, cá cược bóng đá, bài bạc online.
+4. Đường link độc hại: Khuyến khích người dùng click vào link không rõ nguồn gốc.
+
+Hướng dẫn đánh giá:
+- Đọc kỹ ngữ cảnh. Nếu là hội thoại bình thường, công việc, hoặc thông báo chính thống -> is_spam = false.
+- Nếu chứa các dấu hiệu thúc giục, đe dọa (ví dụ: "Tài khoản của bạn sẽ bị khóa", "Cập nhật ngay"), hoặc dụ dỗ ("Bạn đã trúng 100 triệu") -> is_spam = true, probability > 80.
+- Nếu có chứa link rút gọn (bit.ly, v.v.) kèm lời chào mời đáng ngờ -> is_spam = true.
+
+Chỉ trả về DUY NHẤT một chuỗi JSON hợp lệ theo đúng định dạng sau, không có markdown, không có bất kỳ văn bản nào khác:
+{{
+  "is_spam": true hoặc false,
+  "probability": <số float từ 0 đến 100 thể hiện % khả năng là độc hại>,
+  "reason": "<Nêu ngắn gọn dấu hiệu đáng ngờ bằng tiếng Việt (ví dụ: 'Chứa từ khóa trúng thưởng giả mạo và link lạ')>"
+}}
+
+Văn bản cần phân tích:
+"{text}"
+"""
+    payload = {
+        "model": "deepseek-v4-flash",
+        "messages": [
+            {"role": "user", "content": prompt}
+        ],
+        "temperature": 0.1
+    }
+    
+    try:
+        response = requests.post(DEEPSEEK_API_URL, json=payload, headers=headers, timeout=15)
+        response.raise_for_status()
+        data = response.json()
+        content = data['choices'][0]['message']['content']
+        
+        # Parse JSON from content
+        if "```json" in content:
+            content = content.split("```json")[1].split("```")[0].strip()
+        elif "```" in content:
+            content = content.split("```")[1].split("```")[0].strip()
+            
+        result = json.loads(content)
+        return {
+            'is_spam': result.get('is_spam', False),
+            'probability': result.get('probability', 0),
+            'source': 'DeepSeek AI: ' + result.get('reason', '')
+        }
+    except Exception as e:
+        print(f"Lỗi khi gọi DeepSeek API (Text): {e}")
+        return None
+
+def analyze_image_with_deepseek(base64_img_data):
+    """Gọi DeepSeek Vision API thông qua ds2api để phân tích hình ảnh"""
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {DEEPSEEK_API_KEY}"
+    }
+    prompt = """Bạn là một chuyên gia an ninh mạng và phân tích hình ảnh kỹ thuật số. 
+Nhiệm vụ của bạn là ĐỌC CHỮ trong hình ảnh này và phân tích xem hình ảnh này có chứa nội dung lừa đảo, spam hay cờ bạc không.
+
+Các dấu hiệu cần tìm kiếm:
+1. Lừa đảo (Phishing): Giả mạo tin nhắn ngân hàng (biến động số dư giả), giả mạo công an yêu cầu cài app, giả mạo biên lai chuyển tiền.
+2. Spam & Tuyển dụng lừa đảo: Banner quảng cáo làm việc tại nhà "việc nhẹ lương cao", "thích video tiktok kiếm tiền", trúng thưởng ảo.
+3. Cờ bạc: Banner quảng cáo nhà cái, lô đề, game bài đổi thưởng (Tài xỉu, Baccarat, Slot game), cá cược thể thao.
+
+Hướng dẫn:
+- Trích xuất văn bản có trong ảnh một cách chính xác.
+- Nếu văn bản trong ảnh là tin nhắn bình thường, tài liệu, sách, hoặc hội thoại hàng ngày -> is_spam = false.
+- Nếu phát hiện các từ khóa hoặc hình ảnh liên quan đến nhà cái, trúng thưởng lớn, cài app lạ, OTP -> is_spam = true.
+
+Chỉ trả về DUY NHẤT một chuỗi JSON hợp lệ theo đúng định dạng sau, không có bất kỳ ký tự nào khác:
+{
+  "is_spam": true hoặc false,
+  "probability": <số float từ 0 đến 100 thể hiện % khả năng là độc hại>,
+  "reason": "<Nêu rõ dấu hiệu lừa đảo/cờ bạc có trong ảnh (ví dụ: 'Hình ảnh chứa nội dung quảng cáo game bài đổi thưởng')>",
+  "extracted_text": "<Ghi lại tóm tắt phần chữ bạn đọc được từ hình ảnh>"
+}"""
+    payload = {
+        "model": "deepseek-v4-vision",
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": prompt},
+                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_img_data}"}}
+                ]
+            }
+        ],
+        "temperature": 0.1
+    }
+    try:
+        response = requests.post(DEEPSEEK_API_URL, json=payload, headers=headers, timeout=30)
+        response.raise_for_status()
+        data = response.json()
+        content = data['choices'][0]['message']['content']
+        
+        if "```json" in content:
+            content = content.split("```json")[1].split("```")[0].strip()
+        elif "```" in content:
+            content = content.split("```")[1].split("```")[0].strip()
+            
+        result = json.loads(content)
+        return {
+            'is_spam': result.get('is_spam', False),
+            'probability': result.get('probability', 0),
+            'source': 'DeepSeek Vision: ' + result.get('reason', ''),
+            'message': result.get('extracted_text', '[Không trích xuất được chữ]')
+        }
+    except Exception as e:
+        print(f"Lỗi khi gọi DeepSeek Vision API (Image): {e}")
+        return None
+
 @app.route('/predict_image', methods=['POST'])
 def predict_image():
-    if not model or not vectorizer:
-        return jsonify({'error': 'Mô Hill chưa được tải'}), 500
-    
     data = request.json
     image_url = data.get('image_url')
 
@@ -325,6 +478,21 @@ def predict_image():
             headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
             response = requests.get(image_url, headers=headers, timeout=10)
             img = Image.open(BytesIO(response.content))
+            base64_img_data = base64.b64encode(response.content).decode('utf-8')
+
+        # Thử phân tích bằng DeepSeek Vision (chạy qua ds2api) trước
+        ds_vision_result = analyze_image_with_deepseek(base64_img_data)
+        if ds_vision_result:
+            return jsonify({
+                'is_spam': ds_vision_result['is_spam'],
+                'probability': round(ds_vision_result['probability'], 2),
+                'message': ds_vision_result['message'],
+                'source': ds_vision_result['source']
+            })
+
+        # Nếu DeepSeek Vision lỗi, Fallback về Tesseract OCR + Local Model
+        if not model or not vectorizer:
+            return jsonify({'error': 'DeepSeek Vision lỗi và mô hình local chưa được tải'}), 500
 
         # --- TỐI ƯU HÓA ẢNH ĐỂ OCR CHUẨN HƠN ---
         # 1. Chuyển sang ảnh xám
@@ -392,6 +560,38 @@ import json
 import datetime
 
 REPORT_FILE = os.path.join(current_dir, 'feedback_reports.json')
+BAD_DOMAINS_FILE = os.path.join(current_dir, 'reported_bad_domains.json')
+
+def load_bad_domains():
+    """Tải danh sách domain xấu được báo cáo từ người dùng"""
+    if os.path.exists(BAD_DOMAINS_FILE):
+        try:
+            with open(BAD_DOMAINS_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {}
+
+def save_bad_domain(domain, redirect_url, page_domain):
+    """Thêm domain vào danh sách đen học tự động"""
+    try:
+        bad_domains = load_bad_domains()
+        if domain not in bad_domains:
+            bad_domains[domain] = {
+                'redirect_url': redirect_url,
+                'reported_from': page_domain,
+                'report_count': 1,
+                'first_seen': datetime.datetime.utcnow().isoformat() + 'Z',
+                'last_seen': datetime.datetime.utcnow().isoformat() + 'Z'
+            }
+        else:
+            bad_domains[domain]['report_count'] += 1
+            bad_domains[domain]['last_seen'] = datetime.datetime.utcnow().isoformat() + 'Z'
+        with open(BAD_DOMAINS_FILE, 'w', encoding='utf-8') as f:
+            json.dump(bad_domains, f, ensure_ascii=False, indent=2)
+        print(f"[BadDomains] Đã thêm domain xấu: {domain} (số lần báo cáo: {bad_domains[domain]['report_count']})")
+    except Exception as e:
+        print(f"[BadDomains] Lỗi ghi file: {e}")
 
 @app.route('/report', methods=['POST'])
 def report_feedback():
@@ -413,6 +613,7 @@ def report_feedback():
         'element_type': data.get('element_type', 'text'),
         'content': data.get('content', '')[:500],       # Giới hạn 500 ký tự
         'page_domain': data.get('page_domain', ''),      # Chỉ lưu domain, không URL đầy đủ
+        'redirect_url': data.get('redirect_url', ''),    # Lưu link quảng cáo/chuyển hướng
         'timestamp': datetime.datetime.utcnow().isoformat() + 'Z'
     }
 
@@ -427,6 +628,18 @@ def report_feedback():
         with open(REPORT_FILE, 'w', encoding='utf-8') as f:
             json.dump(reports, f, ensure_ascii=False, indent=2)
         print(f"[Report] Đã nhận báo cáo '{report_type}' từ {entry['page_domain']}")
+
+        # ══ Học tự động: Nếu là false_negative và có redirect_url ══
+        # Tự động thêm domain vào danh sách đen để lần sau chặn ngay lập tức
+        redirect_url = entry.get('redirect_url', '')
+        if report_type == 'false_negative' and redirect_url:
+            try:
+                bad_domain = urlparse(redirect_url).hostname
+                if bad_domain:
+                    save_bad_domain(bad_domain, redirect_url, entry['page_domain'])
+            except Exception as ex:
+                print(f"[BadDomains] Không thể parse domain từ redirect_url: {ex}")
+
         return jsonify({'status': 'ok', 'message': 'Cảm ơn! Báo cáo đã được ghi nhận.'}), 200
     except Exception as e:
         print(f"[Report] Lỗi ghi file: {e}")

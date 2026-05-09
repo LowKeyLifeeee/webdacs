@@ -1,4 +1,13 @@
 // Background Script - Xử lý Menu chuột phải
+
+// Lưu lại link ảnh được click gần nhất từ content script
+let lastRightClickedInfo = { imgSrc: '', redirectUrl: '' };
+
+chrome.runtime.onMessage.addListener((msg) => {
+    if (msg.action === 'SAVE_RIGHT_CLICK_INFO') {
+        lastRightClickedInfo = msg.data;
+    }
+});
 chrome.runtime.onInstalled.addListener(() => {
     // Xóa tất cả menu cũ trước khi tạo lại (tránh lỗi trùng ID khi reload)
     chrome.contextMenus.removeAll(() => {
@@ -42,11 +51,11 @@ chrome.runtime.onInstalled.addListener(() => {
             contexts: ["image", "selection", "link", "page"]
         });
 
-        // ── Sub-menu 4: Báo cáo trang lừa đảo ────────────────────────────
+        // ── Sub-menu 4: Báo cáo lừa đảo ────────────────────────────
         chrome.contextMenus.create({
-            id: "reportPage",
+            id: "reportItem",
             parentId: "antispamParent",
-            title: "🚨 Báo cáo trang này là lừa đảo",
+            title: "🚨 Báo cáo mục này (Trang/Ảnh/Link) là lừa đảo",
             contexts: ["image", "selection", "link", "page"]
         });
     });
@@ -213,17 +222,40 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
             });
         });
 
-    } else if (info.menuItemId === "reportPage") {
-        // ── Báo cáo trang lừa đảo ────────────────────────────────────────
-        const url = tab.url;
+    } else if (info.menuItemId === "reportItem" || info.menuItemId === "reportPage") {
+        // ── Báo cáo mục lừa đảo (thông minh: tìm link cha qua scripting) ───────
+        const pageUrl = tab.url;
+
+        // Lưu thông tin từ info.srcUrl / info.linkUrl của Chrome context menu
+        let reportContent = info.srcUrl || pageUrl;
+        let redirectUrl = info.linkUrl || '';
+        let elementType = info.srcUrl ? 'image' : 'page';
+
+        // Nếu link cha chưa có từ Chrome (ví dụ onclick-based), dùng được lưu sẵn từ content script
+        if (!redirectUrl && lastRightClickedInfo.redirectUrl) {
+            redirectUrl = lastRightClickedInfo.redirectUrl;
+        }
+        // Ghi đè reportContent nếu có srcUrl từ content script
+        if (!info.srcUrl && lastRightClickedInfo.imgSrc) {
+            reportContent = lastRightClickedInfo.imgSrc;
+            elementType = 'image';
+        }
+        // Phân loại chính xác
+        if (info.srcUrl && redirectUrl) elementType = 'image_with_link';
+        if (info.linkUrl && !info.srcUrl) elementType = 'link';
+
+        // Reset sau mỗi lần dùng
+        lastRightClickedInfo = { imgSrc: '', redirectUrl: '' };
+
         fetch('http://localhost:5000/report', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 report_type: 'false_negative',
-                element_type: 'page',
-                content: url,
-                page_domain: new URL(url).hostname,
+                element_type: elementType,
+                content: reportContent,
+                page_domain: new URL(pageUrl).hostname,
+                redirect_url: redirectUrl,
                 timestamp: new Date().toISOString()
             })
         })
@@ -232,7 +264,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
                 type: 'basic',
                 iconUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
                 title: '✅ Đã gửi báo cáo',
-                message: `Cảm ơn! Trang ${new URL(url).hostname} đã được ghi nhận là lừa đảo.`,
+                message: `Cảm ơn! Báo cáo đã được ghi nhận.${redirectUrl ? ' Link: ' + redirectUrl.substring(0, 50) + '...' : ''}`,
                 priority: 1
             });
         })

@@ -247,7 +247,7 @@ function extractUrlTokens(rawUrl) {
 }
 
 // ─── Gửi báo cáo ──────────────────────────────────────────────────────────
-function sendReport(reportType, content, elementType) {
+function sendReport(reportType, content, elementType, redirectUrl = '') {
     fetch(`${API_BASE}/report`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -256,13 +256,14 @@ function sendReport(reportType, content, elementType) {
             element_type: elementType,
             content: String(content).substring(0, 500),
             page_domain: window.location.hostname,
+            redirect_url: redirectUrl,
             timestamp: new Date().toISOString()
         })
     }).catch(() => { });
 }
 
 // ─── Tạo report buttons ────────────────────────────────────────────────────
-function createReportBar(originalText, elementType) {
+function createReportBar(originalText, elementType, redirectUrl = '') {
     const bar = document.createElement('div');
     bar.className = 'antispam-report-bar';
 
@@ -271,7 +272,7 @@ function createReportBar(originalText, elementType) {
     fp.textContent = '✓ Báo cáo sai';
     fp.addEventListener('click', e => {
         e.stopPropagation(); e.preventDefault();
-        sendReport('false_positive', originalText, elementType);
+        sendReport('false_positive', originalText, elementType, redirectUrl);
         fp.textContent = '✓ Đã gửi'; fp.classList.add('sent');
         fn.classList.add('sent');
     });
@@ -281,7 +282,7 @@ function createReportBar(originalText, elementType) {
     fn.textContent = '⚑ Bỏ sót';
     fn.addEventListener('click', e => {
         e.stopPropagation(); e.preventDefault();
-        sendReport('false_negative', originalText, elementType);
+        sendReport('false_negative', originalText, elementType, redirectUrl);
         fn.textContent = '✓ Đã gửi'; fn.classList.add('sent');
         fp.classList.add('sent');
     });
@@ -323,7 +324,9 @@ function highlightImage(imgEl, reason) {
         wrapper.appendChild(badge);
 
         // Report bar ở dưới
-        wrapper.appendChild(createReportBar(reason, 'image'));
+        const parentLinkTag = imgEl.closest('a[href]');
+        const redirectUrl = parentLinkTag ? parentLinkTag.href : '';
+        wrapper.appendChild(createReportBar(reason, 'image', redirectUrl));
 
         // Toast thông báo
         showToast('Phát hiện quảng cáo cờ bạc!', reason);
@@ -357,7 +360,8 @@ function highlightElement(el, reason, type = 'text') {
     badge.title = reason;
 
     // Report buttons
-    const reportBar = createReportBar(reason, type);
+    const redirectUrl = el.tagName === 'A' ? el.href : (el.closest('a[href]') ? el.closest('a[href]').href : '');
+    const reportBar = createReportBar(reason, type, redirectUrl);
     reportBar.style.cssText = 'position:absolute;top:-16px;right:0;display:flex;gap:4px;';
 
     el.appendChild(badge);
@@ -608,4 +612,37 @@ const autoScanInterval = setInterval(() => {
         safeSendMessage({ action: 'REQUEST_AUTO_SCAN' });
     }
 }, 2000);
+
+// ─── Bắt sự kiện Right-Click để lấy link cha của ảnh ──────────────────────
+// Khi người dùng right-click vào ảnh, Chrome chỉ cung cấp srcUrl nhưng không biết
+// link cha (<a href>) là gì (đặc biệt khi link dùng JS onclick thay vì href).
+// Content script này sẽ lấy thông tin đó và gửi sang background.js trước.
+document.addEventListener('contextmenu', (e) => {
+    const el = e.target;
+    const imgEl = el.tagName === 'IMG' ? el : el.closest('img');
+    if (!imgEl) return; // Chỉ quan tâm khi right-click vào ảnh
+
+    // Tìm link cha gần nhất
+    const parentA = imgEl.closest('a[href]');
+    let redirectUrl = parentA ? parentA.href : '';
+
+    // Nếu không có <a href>, thử tìm onclick hoặc data-href
+    if (!redirectUrl) {
+        const clickableParent = imgEl.closest('[onclick], [data-href], [data-url], [data-link]');
+        if (clickableParent) {
+            redirectUrl = clickableParent.getAttribute('data-href')
+                || clickableParent.getAttribute('data-url')
+                || clickableParent.getAttribute('data-link')
+                || '';
+        }
+    }
+
+    const imgSrc = imgEl.src || imgEl.currentSrc || imgEl.getAttribute('data-src') || '';
+
+    // Gửi về background.js để dùng khi người dùng chọn "Báo cáo"
+    safeSendMessage({
+        action: 'SAVE_RIGHT_CLICK_INFO',
+        data: { imgSrc, redirectUrl }
+    });
+}, true); // useCapture = true để bắt trước menu hiện ra
 
