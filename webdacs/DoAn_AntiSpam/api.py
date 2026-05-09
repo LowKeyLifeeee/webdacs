@@ -469,8 +469,9 @@ def predict_image():
 
     try:
         if image_url.startswith('data:image'):
-            # Xử lý ảnh dạng Base64
+            # Xử lý ảnh dạng Base64 (gửi từ extension)
             header, encoded = image_url.split(",", 1)
+            base64_img_data = encoded  # giữ sẵn để gửi cho DeepSeek Vision
             image_data = base64.b64decode(encoded)
             img = Image.open(BytesIO(image_data))
         else:
