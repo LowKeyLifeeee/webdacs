@@ -91,7 +91,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
             });
 
             // 2. Gửi Base64 về Backend
-            return fetch('http://localhost:5000/predict_image', {
+            return fetch('http://localhost:8000/predict_image', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ image_url: base64Data })
@@ -140,7 +140,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
         });
 
         // Gửi nội dung về Backend (local api)
-        fetch('http://localhost:5000/predict', {
+        fetch('http://localhost:8000/predict', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ message: contentToCheck })
@@ -194,7 +194,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
             message: url.substring(0, 100)
         });
 
-        fetch('http://localhost:5000/predict-url', {
+        fetch('http://localhost:8000/predict-url', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ url: url })
@@ -247,7 +247,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
         // Reset sau mỗi lần dùng
         lastRightClickedInfo = { imgSrc: '', redirectUrl: '' };
 
-        fetch('http://localhost:5000/report', {
+        fetch('http://localhost:8000/report', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -302,7 +302,7 @@ function checkURLSafety(url, tabId) {
         }
 
         // Nếu không nằm trong list, gọi API phân tích
-        fetch('http://localhost:5000/predict-url', {
+        fetch('http://localhost:8000/predict-url', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ url: url })
@@ -389,7 +389,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 }
                 
                 // Gửi về backend API
-                fetch('http://localhost:5000/predict_image', {
+                fetch('http://localhost:8000/predict_image', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ image_url: dataUrl })
@@ -404,6 +404,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                             message: `Hệ thống vừa nhận diện màn hình có rủi ro (${data.probability}%).\nNội dung: ${data.message}`,
                             priority: 2,
                             requireInteraction: true // Thông báo ở đỏ giữ lại cho đến khi user tắt
+                        });
+                    } else if (data.message && data.message !== '[Không tìm thấy chữ trong ảnh]') {
+                        chrome.notifications.create({
+                            type: 'basic',
+                            iconUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+                            title: "✅ MÀN HÌNH AN TOÀN (CV Auto)",
+                            message: `Hệ thống phân tích an toàn (${data.probability}%).\nNội dung: ${data.message.substring(0, 50)}...`,
+                            priority: 0
                         });
                     }
                 })

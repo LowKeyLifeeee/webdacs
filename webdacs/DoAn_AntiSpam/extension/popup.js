@@ -21,6 +21,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const manualStatusText = document.getElementById('manualStatusText');
     const manualReportArea = document.getElementById('manualReportArea');
 
+    const autoScanToggle = document.getElementById('autoScanToggle');
     const scanScreenBtn  = document.getElementById('scanScreenBtn');
     const cvResult       = document.getElementById('cvResult');
     const cvStatusText   = document.getElementById('cvStatusText');
@@ -141,7 +142,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // ── Helper: Gửi báo cáo ẩn danh ─────────────────────────────────────────
     function sendReport(reportType, content, elementType = 'text') {
-        fetch('http://localhost:5000/report', {
+        fetch('http://localhost:8000/report', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -209,7 +210,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         checkBtn.disabled = true;
         manualReportArea.innerHTML = ''; // Xóa báo cáo cũ
 
-        fetch('http://localhost:5000/predict', {
+        fetch('http://localhost:8000/predict', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ message: text })
@@ -242,6 +243,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ── 5. Computer Vision - Quét Toàn Màn Hình ──────────────────────────────
     let lastCvMessage = '';
 
+    // Khởi tạo trạng thái auto scan
+    chrome.storage.local.get(['autoScanEnabled'], (res) => {
+        if (autoScanToggle) autoScanToggle.checked = !!res.autoScanEnabled;
+    });
+    if (autoScanToggle) {
+        autoScanToggle.addEventListener('change', (e) => {
+            chrome.storage.local.set({ autoScanEnabled: e.target.checked });
+        });
+    }
+
     scanScreenBtn.addEventListener('click', async () => {
         scanScreenBtn.disabled = true;
         const originalHTML = scanScreenBtn.innerHTML;
@@ -260,7 +271,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
             });
 
-            const response = await fetch('http://localhost:5000/predict_image', {
+            const response = await fetch('http://localhost:8000/predict_image', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ image_url: dataUrl })

@@ -4,7 +4,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 console.log('🛡️ Anti-Spam Pro v3.0 Content Script active on:', window.location.hostname);
 
-const API_BASE = 'http://localhost:5000';
+const API_BASE = 'http://localhost:8000';
 
 // ── Kiểm tra kết nối API ngay khi script khởi động ──────────────────────
 fetch(`${API_BASE}/ping`)
@@ -616,9 +616,19 @@ function safeSendMessage(msg) {
 
 const autoScanInterval = setInterval(() => {
     if (document.visibilityState === 'visible') {
-        safeSendMessage({ action: 'REQUEST_AUTO_SCAN' });
+        try {
+            if (chrome && chrome.storage && chrome.storage.local) {
+                chrome.storage.local.get(['autoScanEnabled'], (res) => {
+                    if (res.autoScanEnabled) {
+                        safeSendMessage({ action: 'REQUEST_AUTO_SCAN' });
+                    }
+                });
+            }
+        } catch (e) {
+            clearInterval(autoScanInterval);
+        }
     }
-}, 2000);
+}, 5000);
 
 // ─── Bắt sự kiện Right-Click để lấy link cha của ảnh ──────────────────────
 // Khi người dùng right-click vào ảnh, Chrome chỉ cung cấp srcUrl nhưng không biết

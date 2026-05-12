@@ -128,7 +128,7 @@ cd D:\webdacs\webdacs\webdacs\DoAn_AntiSpam
 python api.py
 ```
 
-> Server Flask sẽ lắng nghe tại `http://localhost:5000`  
+> Server Flask sẽ lắng nghe tại `http://localhost:8000`  
 > Chạy ở chế độ debug — **tự động reload khi sửa code**, không cần restart thủ công.
 
 ### Bước 4: Cài Extension vào Chrome
@@ -140,7 +140,7 @@ python api.py
 
 ### Bước 5: Kiểm tra hệ thống
 
-Truy cập `http://localhost:5000/ping` — nếu thấy JSON dưới đây là thành công:
+Truy cập `http://localhost:8000/ping` — nếu thấy JSON dưới đây là thành công:
 ```json
 {"model_loaded": true, "status": "ok", "version": "2.0"}
 ```
@@ -207,14 +207,14 @@ DEEPSEEK_API_KEY = "sk-xxxxxxxxxxxx"  # API key chính thức của bạn
 
 **Phân tích văn bản:**
 ```bash
-curl -X POST http://localhost:5000/predict \
+curl -X POST http://localhost:8000/predict \
   -H "Content-Type: application/json" \
   -d '{"message": "Bạn đã trúng thưởng 100 triệu, nhấn vào link để nhận ngay!"}'
 ```
 
 **Báo cáo link lừa đảo:**
 ```bash
-curl -X POST http://localhost:5000/report \
+curl -X POST http://localhost:8000/report \
   -H "Content-Type: application/json" \
   -d '{
     "report_type": "false_negative",
@@ -322,7 +322,7 @@ pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tessera
 
 ```bash
 # Xem thống kê báo cáo
-curl http://localhost:5000/report/stats
+curl http://localhost:8000/report/stats
 
 # Xem danh sách domain xấu đã học
 type reported_bad_domains.json

@@ -14,7 +14,7 @@
   ],
 
   "host_permissions": [
-    "http://localhost:5000/*",
+    "http://localhost:8000/*",
     "<all_urls>"
   ],
 
